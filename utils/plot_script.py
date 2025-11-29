@@ -356,6 +356,9 @@ def plot_3d_motion(save_path, kinematic_tree, joints, title, figsize=(6, 6), fps
     def update(frame_idx):
         ax.cla()  # clear entire axes each frame
 
+        # 👇 Add this line: set camera view (elevation + azimuth)
+        ax.view_init(elev=90, azim=90)  # tweak numbers if you want
+
         # Draw skeleton
         frame = data[frame_idx]  # (J, 3)
         for chain in kinematic_tree:
@@ -367,6 +370,7 @@ def plot_3d_motion(save_path, kinematic_tree, joints, title, figsize=(6, 6), fps
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
         ax.set_zlim(zmin, zmax)
+        ax.invert_yaxis()
 
         # Clean axes
         ax.set_xticks([])
@@ -377,6 +381,7 @@ def plot_3d_motion(save_path, kinematic_tree, joints, title, figsize=(6, 6), fps
         ax.set_zlabel("")
 
         plt.axis("off")
+
 
     ani = FuncAnimation(fig, update, frames=T, interval=1000 / fps, repeat=False)
     ani.save(save_path, fps=fps)
