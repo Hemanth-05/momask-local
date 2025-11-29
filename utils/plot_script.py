@@ -123,8 +123,10 @@ def plot_3d_motion_v2(motion, kinematic_tree, save_path, interval=50, dataset=No
     print(data.shape)
 
     def update(index):
-        ax.lines = []
-        ax.collections = []
+        for line in list(ax.lines):
+            line.remove()
+        for coll in list(ax.collections):
+            coll.remove()
         ax.view_init(elev=110, azim=-90)
         ax.scatter(motion[index, :, 0], motion[index, :, 1], motion[index, :, 2], color='black')
         for chain, color in zip(kinematic_tree, colors):
@@ -192,8 +194,10 @@ def plot_3d_motion_kit(save_path, kinematic_tree, joints, title, figsize=(5, 5),
 
     def update(index):
         #         print(index)
-        ax.lines = []
-        ax.collections = []
+        for line in list(ax.lines):
+            line.remove()
+        for coll in list(ax.collections):
+            coll.remove()
         ax.view_init(elev=110, azim=-90)
         ax.dist = 7.5
         #         ax =
@@ -250,8 +254,10 @@ def plot_3d_motion_gt_pred(save_path, kinematic_tree, gt_joints, pred_joints, ti
 
     def update(index):
         for i, ax in enumerate(axs):
-            ax.lines = []
-            ax.collections = []
+            for line in list(ax.lines):
+                line.remove()
+            for coll in list(ax.collections):
+                coll.remove()
             ax.view_init(elev=120, azim=-90)
             ax.dist = 7.5
 
@@ -320,96 +326,61 @@ def plot_3d_motion_gt_pred(save_path, kinematic_tree, gt_joints, pred_joints, ti
     ani.save(save_path, fps=fps)
     plt.close()
 
-def plot_3d_motion(save_path, kinematic_tree, joints, title, figsize=(10, 10), fps=120, radius=4):
-    matplotlib.use('Agg')
+def plot_3d_motion(save_path, kinematic_tree, joints, title, figsize=(6, 6), fps=20, radius=4):
+    """
+    Simple and robust 3D skeleton animation for modern matplotlib.
 
-    title_sp = title.split(' ')
-    if len(title_sp) > 20:
-        title = '\n'.join([' '.join(title_sp[:10]), ' '.join(title_sp[10:20]), ' '.join(title_sp[20:])])
-    elif len(title_sp) > 10:
-        title = '\n'.join([' '.join(title_sp[:10]), ' '.join(title_sp[10:])])
+    - joints: (T, J*3) or (T, J, 3)
+    - kinematic_tree: list of joint index chains (each a list of ints)
+    """
+    matplotlib.use("Agg")
 
-    def init():
-        ax.set_xlim3d([-radius / 2, radius / 2])
-        ax.set_ylim3d([0, radius])
-        ax.set_zlim3d([0, radius])
-        # print(title)
-        fig.suptitle(title, fontsize=20)
-        ax.grid(b=False)
+    # Make sure data is (T, J, 3)
+    data = joints.copy()
+    data = data.reshape(len(data), -1, 3)  # (T, J, 3)
+    T, J, _ = data.shape
 
-    def plot_xzPlane(minx, maxx, miny, minz, maxz):
-        ## Plot a plane XZ
-        verts = [
-            [minx, miny, minz],
-            [minx, miny, maxz],
-            [maxx, miny, maxz],
-            [maxx, miny, minz]
-        ]
-        xz_plane = Poly3DCollection([verts])
-        xz_plane.set_facecolor((0.5, 0.5, 0.5, 0.5))
-        ax.add_collection3d(xz_plane)
+    # Compute global bounds for nice framing
+    mins = data.min(axis=(0, 1))  # (3,)
+    maxs = data.max(axis=(0, 1))  # (3,)
+    span = maxs - mins
+    margin = 0.1 * (span + 1e-5)
 
-    #         return ax
+    xmin, ymin, zmin = mins - margin
+    xmax, ymax, zmax = maxs + margin
 
-    # (seq_len, joints_num, 3)
-    data = joints.copy().reshape(len(joints), -1, 3)
     fig = plt.figure(figsize=figsize)
-    ax = p3.Axes3D(fig)
-    init()
-    MINS = data.min(axis=0).min(axis=0)
-    MAXS = data.max(axis=0).max(axis=0)
-    colors = ['red', 'blue', 'black', 'red', 'blue',
-              'darkblue', 'darkblue', 'darkblue', 'darkblue', 'darkblue',
-              'darkred', 'darkred', 'darkred', 'darkred', 'darkred']
-    frame_number = data.shape[0]
-    #     print(data.shape)
+    ax = fig.add_subplot(111, projection="3d")
+    fig.suptitle(title, fontsize=14)
 
-    height_offset = MINS[1]
-    data[:, :, 1] -= height_offset
-    trajec = data[:, 0, [0, 2]]
+    def update(frame_idx):
+        ax.cla()  # clear entire axes each frame
 
-    data[..., 0] -= data[:, 0:1, 0]
-    data[..., 2] -= data[:, 0:1, 2]
+        # Draw skeleton
+        frame = data[frame_idx]  # (J, 3)
+        for chain in kinematic_tree:
+            chain = list(chain)
+            pts = frame[chain]  # (len(chain), 3)
+            ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], linewidth=2)
 
-    #     print(trajec.shape)
+        # Set consistent limits so motion stays in frame
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
+        ax.set_zlim(zmin, zmax)
 
-    def update(index):
-        #         print(index)
-        ax.lines = []
-        ax.collections = []
-        ax.view_init(elev=120, azim=-90)
-        ax.dist = 7.5
-        #         ax =
-        plot_xzPlane(MINS[0] - trajec[index, 0], MAXS[0] - trajec[index, 0], 0, MINS[2] - trajec[index, 1],
-                     MAXS[2] - trajec[index, 1])
-        #         ax.scatter(data[index, :22, 0], data[index, :22, 1], data[index, :22, 2], color='black', s=3)
+        # Clean axes
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.set_zlabel("")
 
-        if index > 1:
-            ax.plot3D(trajec[:index, 0] - trajec[index, 0], np.zeros_like(trajec[:index, 0]),
-                      trajec[:index, 1] - trajec[index, 1], linewidth=1.0,
-                      color='blue')
-        #             ax = plot_xzPlane(ax, MINS[0], MAXS[0], 0, MINS[2], MAXS[2])
+        plt.axis("off")
 
-        for i, (chain, color) in enumerate(zip(kinematic_tree, colors)):
-            #             print(color)
-            if i < 5:
-                linewidth = 4.0
-            else:
-                linewidth = 2.0
-            ax.plot3D(data[index, chain, 0], data[index, chain, 1], data[index, chain, 2], linewidth=linewidth,
-                      color=color)
-        #         print(trajec[:index, 0].shape)
-
-        plt.axis('off')
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        ax.set_zticklabels([])
-
-    ani = FuncAnimation(fig, update, frames=frame_number, interval=1000 / fps, repeat=False)
-
-    # writer = FFMpegFileWriter(fps=fps)
+    ani = FuncAnimation(fig, update, frames=T, interval=1000 / fps, repeat=False)
     ani.save(save_path, fps=fps)
-    plt.close()
+    plt.close(fig)
 
 
 def plot_3d_motion_old(motion, pose_tree, class_type, save_path, interval=300, excluded_joints=None):
@@ -438,8 +409,10 @@ def plot_3d_motion_old(motion, pose_tree, class_type, save_path, interval=300, e
     print(data.shape)
 
     def update(index):
-        ax.lines = []
-        ax.collections = []
+        for line in list(ax.lines):
+            line.remove()
+        for coll in list(ax.collections):
+            coll.remove()
         if excluded_joints is None:
             ax.scatter(data[index, :, 0], data[index, :, 1], data[index, :, 2], color='b', marker='h', s=15)
         else:
@@ -517,8 +490,10 @@ def plot_3d_multi_motion(motion_list, kinematic_tree, save_path, interval=50, da
     # print(data.shape)
     print("Number of motions %d" % (len(motion_list)))
     def update(index):
-        ax.lines = []
-        ax.collections = []
+        for line in list(ax.lines):
+            line.remove()
+        for coll in list(ax.collections):
+            coll.remove()
         if dataset == "mocap":
             ax.view_init(elev=110, azim=-90)
         else:

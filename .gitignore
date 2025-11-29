@@ -1,4 +1,42 @@
+# --- Python ---
+__pycache__/
 *.pyc
-checkpoints
-editing
-generation
+*.pyo
+*.pyd
+*.swp
+
+# --- Virtual Environments ---
+.venv/
+venv/
+
+# --- OS Files ---
+.DS_Store
+
+# --- Generated Animations / Outputs ---
+generation/
+output/
+results/
+samples/
+
+# --- Heavy Model Files (Do NOT upload to GitHub) ---
+checkpoints/
+HumanML3D/
+KIT-ML/
+models/
+*.pth
+*.tar
+*.zip
+
+# --- Colab / Notebook Caches ---
+.ipynb_checkpoints/
+
+# --- Download Scripts Outputs ---
+prepare/download_models/
+prepare/datasets/
+
+# --- Video Files ---
+*.mp4
+*.gif
+
+# --- Logs ---
+*.log

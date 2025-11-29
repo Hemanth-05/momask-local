@@ -115,10 +115,10 @@ def ik(grot, gpos, parents):
         ], axis=-2))
 
 def ik_rot(grot, parents):
-    
-    return np.concatenate([grot[...,:1,:], 
-                        mul(inv(grot[...,parents[1:],:]), grot[...,1:,:]),
-                    ], axis=-2)
+    return np.concatenate([
+        grot[...,:1,:],
+        mul(inv(grot[...,parents[1:],:]), grot[...,1:,:]),
+    ], axis=-2)
     
 def fk_vel(lrot, lpos, lvel, lang, parents):
     
